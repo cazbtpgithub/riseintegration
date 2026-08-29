@@ -238,7 +238,7 @@ const getInspectionResultValue = async (params) => {
  */
 const fetchMaterialDocumentCsrfToken = async () => {
     try {
-        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentHeader?sap-client=110&$top=1`;
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/?sap-client=110`;
         const response = await axios.get(url, {
             auth: getSapAuth(),
             headers: {
@@ -250,8 +250,9 @@ const fetchMaterialDocumentCsrfToken = async () => {
         const cookies = response.headers['set-cookie'];
         return { token, cookies };
     } catch (error) {
-        console.error('Failed to fetch Material Document CSRF token:', error.response ? error.response.data : error.message);
-        throw new Error('Could not retrieve CSRF token for Material Document API');
+        const detail = error.response ? JSON.stringify(error.response.data) : error.message;
+        console.error('Failed to fetch Material Document CSRF token:', detail);
+        throw new Error(`Could not retrieve CSRF token for Material Document API: ${detail}`);
     }
 };
 
