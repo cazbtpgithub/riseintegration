@@ -1,7 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const { basicAuthMiddleware } = require('./middleware/auth');
+const { jwtAuthMiddleware } = require('./middleware/auth');
 const sapRoutes = require('./routes/sapRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,11 +10,11 @@ const PORT = process.env.PORT || 3000;
 // Middleware to parse JSON request bodies
 app.use(express.json());
 
-// Protect the entire API with Basic Auth (optional, can be moved to specific routes if needed)
-app.use(basicAuthMiddleware);
+// Open route for authentication
+app.use('/api/auth', authRoutes);
 
-// Routes
-app.use('/api/sap/dev', sapRoutes);
+// Protect the API with JWT Auth
+app.use('/api/sap/dev', jwtAuthMiddleware, sapRoutes);
 
 // Basic health check route
 app.get('/health', (req, res) => {

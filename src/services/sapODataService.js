@@ -564,6 +564,60 @@ const pocancel = async (params) => {
     }
 };
 
+/**
+ * Fetch a CSRF token specifically for Prd Order Confirmation API.
+ */
+const fetchPrdOrderConfirmationCsrfToken = async () => {
+    try {
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/API_PROD_ORDER_CONFIRMATION_2_SRV/?sap-client=110`;
+        const response = await axios.get(url, {
+            auth: getSapAuth(),
+            headers: {
+                'X-CSRF-Token': 'Fetch',
+                'Accept': 'application/json'
+            }
+        });
+        const token = response.headers['x-csrf-token'];
+        const cookies = response.headers['set-cookie'];
+        return { token, cookies };
+    } catch (error) {
+        console.error('Failed to fetch Prd Order Confirmation CSRF token:', error.response ? error.response.data : error.message);
+        throw new Error('Could not retrieve CSRF token for Prd Order Confirmation API');
+    }
+};
+
+/**
+ * Post Prd Order Confirmation to SAP.
+ */
+const postPrdOrderConfirmation = async (payload) => {
+    try {
+        const { token, cookies } = await fetchPrdOrderConfirmationCsrfToken();
+        if (!token) {
+            throw new Error('No CSRF token returned from SAP');
+        }
+
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/ZPP_PROD_CONFI_API_SRV/HeaderentitySet?sap-client=110`;
+        const response = await axios.post(url, payload, {
+            auth: getSapAuth(),
+            headers: {
+                'X-CSRF-Token': token,
+                'Cookie': cookies ? cookies.join('; ') : '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        // The response might be wrapped in .d for OData V2
+        return response.data.d || response.data;
+    } catch (error) {
+        console.error('Prd Order Confirmation POST request failed:', error.response ? error.response.data : error.message);
+        const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+        const err = new Error(errMsg);
+        err.statusCode = error.response ? error.response.status : 500;
+        throw err;
+    }
+};
+
 module.exports = {
     fetchData,
     postData,
@@ -575,5 +629,6 @@ module.exports = {
     postProductionOrder,
     postInspectionLot,
     CancelProdnOrdConf,
-    pocancel
+    pocancel,
+    postPrdOrderConfirmation
 };

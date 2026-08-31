@@ -372,6 +372,30 @@ const pocancel = async (req, res) => {
     }
 };
 
+/**
+ * Controller to handle Prd Order Confirmation creation requests.
+ */
+const postPrdOrderConfirmation = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        const data = await sapODataService.postPrdOrderConfirmation(payload);
+
+        res.status(201).json({
+            Message: 'Prd Order Confirmation processed successfully',
+            StatusCode: 201,
+            Data: data
+        });
+    } catch (error) {
+        console.error('Error in postPrdOrderConfirmation controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to process Prd Order Confirmation',
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
 module.exports = {
     getSAPData,
     postSAPData,
@@ -387,5 +411,6 @@ module.exports = {
     postProductionOrder,
     postInspectionLot,
     CancelProdnOrdConf,
-    pocancel
+    pocancel,
+    postPrdOrderConfirmation
 };

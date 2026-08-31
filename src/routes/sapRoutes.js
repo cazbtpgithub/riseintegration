@@ -47,4 +47,7 @@ router.post('/CancelProdnOrdConf', sapController.CancelProdnOrdConf);
 // POST route for pocancel
 router.post('/pocancel', sapController.pocancel);
 
+// POST route for Prd Order Confirmation
+router.post('/prdorderconfirmation', sapController.postPrdOrderConfirmation);
+
 module.exports = router;

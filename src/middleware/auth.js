@@ -1,13 +1,24 @@
-const basicAuth = require('express-basic-auth');
+const jwt = require('jsonwebtoken');
 
-// Configure Basic Authentication for incoming API requests
-const basicAuthMiddleware = basicAuth({
-    users: { [process.env.API_USER]: process.env.API_PASSWORD },
-    unauthorizedResponse: (req) => {
-        return { error: 'Unauthorized', message: 'Valid credentials are required to access this API.' };
+// Configure JWT Authentication for incoming API requests
+const jwtAuthMiddleware = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Bearer token is required to access this API.' });
     }
-});
+
+    const token = authHeader.split(' ')[1];
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret_key');
+        req.user = decoded; // Attach user info to request
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired token.' });
+    }
+};
 
 module.exports = {
-    basicAuthMiddleware
+    jwtAuthMiddleware
 };
