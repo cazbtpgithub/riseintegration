@@ -396,6 +396,30 @@ const postPrdOrderConfirmation = async (req, res) => {
     }
 };
 
+/**
+ * Controller to handle Production Order Details requests.
+ */
+const getProductionOrderDetails = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        const data = await sapODataService.getProductionOrderDetails(payload);
+
+        res.status(200).json({
+            Message: 'Production Order Details retrieved successfully',
+            StatusCode: 200,
+            Data: data
+        });
+    } catch (error) {
+        console.error('Error in getProductionOrderDetails controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to fetch Production Order Details data',
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
 module.exports = {
     getSAPData,
     postSAPData,
@@ -412,5 +436,6 @@ module.exports = {
     postInspectionLot,
     CancelProdnOrdConf,
     pocancel,
-    postPrdOrderConfirmation
+    postPrdOrderConfirmation,
+    getProductionOrderDetails
 };

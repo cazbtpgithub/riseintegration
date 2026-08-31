@@ -618,6 +618,54 @@ const postPrdOrderConfirmation = async (payload) => {
     }
 };
 
+/**
+ * Fetch Production Order Details
+ */
+const getProductionOrderDetails = async (params) => {
+    try {
+        const productionPlant = params.ProductionPlant || '';
+        const mfgOrderCreationDate = params.MfgOrderCreationDate || ''; 
+
+        let filterStr = '';
+        const filters = [];
+        if (productionPlant) {
+            filters.push(`ProductionPlant eq '${productionPlant}'`);
+        }
+        if (mfgOrderCreationDate) {
+            filters.push(`MfgOrderCreationDate eq datetime'${mfgOrderCreationDate}'`);
+        }
+        if (filters.length > 0) {
+            filterStr = `$filter=${filters.join(' and ')}&`;
+        }
+
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/API_PRODUCTION_ORDER_2_SRV/A_ProductionOrder_2?${filterStr}$expand=to_ProductionOrderComponent,to_ProductionOrderOperation&sap-client=110&$format=json`;
+
+        const response = await axios.get(url, {
+            auth: getSapAuth(),
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        let results = [];
+        if (response.data && response.data.d && response.data.d.results) {
+            results = response.data.d.results;
+        } else if (response.data && response.data.value) {
+            results = response.data.value;
+        } else {
+            results = Array.isArray(response.data) ? response.data : [response.data];
+        }
+
+        return results;
+    } catch (error) {
+        console.error('Production Order Details GET request failed:', error.response ? error.response.data : error.message);
+        const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+        const err = new Error(errMsg);
+        err.statusCode = error.response ? error.response.status : 500;
+        throw err;
+    }
+};
+
 module.exports = {
     fetchData,
     postData,
@@ -630,5 +678,6 @@ module.exports = {
     postInspectionLot,
     CancelProdnOrdConf,
     pocancel,
-    postPrdOrderConfirmation
+    postPrdOrderConfirmation,
+    getProductionOrderDetails
 };

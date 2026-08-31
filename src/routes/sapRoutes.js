@@ -50,4 +50,7 @@ router.post('/pocancel', sapController.pocancel);
 // POST route for Prd Order Confirmation
 router.post('/prdorderconfirmation', sapController.postPrdOrderConfirmation);
 
+// POST route for Production Order Details
+router.post('/prodordergetdetails', sapController.getProductionOrderDetails);
+
 module.exports = router;

@@ -10,6 +10,8 @@ const login = async (req, res) => {
         // Use environment variables or fallback values
         const validUsername = process.env.API_USER || 'admin';
         const validPassword = process.env.API_PASSWORD || 'secret123';
+        
+        console.log('Login attempt:', { providedUsername: username, providedPassword: password, expectedUsername: validUsername, expectedPassword: validPassword });
 
         // Check if provided credentials match
         if (username === validUsername && password === validPassword) {
