@@ -20,8 +20,8 @@ router.post('/material-stock', sapController.getMaterialStock);
 // POST route for Inspection Result Value
 router.post('/inspection-result-value', sapController.getInspectionResultValue);
 
-// POST route for Material Document Header (311 Movement)
-router.post('/material-document-header', sapController.postMaterialDocumentHeader);
+// POST route for Stock transfer from storageloc to storagelocation (311 Movement)
+router.post('/stock-transfer-from-storageloc-to-storagelocation', sapController.postStockTransferStorageLocToStorageLoc);
 
 // POST route for Goods Issue on Process Order (261 Movement)
 router.post('/goods-issue-process-order', sapController.postGoodsIssueProcessOrder);
@@ -32,11 +32,14 @@ router.post('/goods-issue-cost-center', sapController.postGoodsIssueCostCenter);
 // POST route for Stock transfer material to material (309 Movement)
 router.post('/stock-transfer-material-to-material', sapController.postStockTransferMaterialToMaterial);
 
+// POST route for Stock Transfer from Quality to unrestricted (321 Movement)
+router.post('/stock-transfer-from-quality-to-unrestricted', sapController.postStockTransferQualityToUnrestricted);
+
 // POST route for Material Document Cancel
 router.post('/material-document-cancel', sapController.cancelMaterialDocument);
 
-// POST route for Production Order
-router.post('/production-order', sapController.postProductionOrder);
+// POST route for Inspection Result Record
+router.post('/Inspection-Result-Record', sapController.postInspectionResultRecord);
 
 // POST route for Inspection Lot
 router.post('/inspection-lot', sapController.postInspectionLot);
@@ -44,8 +47,8 @@ router.post('/inspection-lot', sapController.postInspectionLot);
 // POST route for Production Order Confirmation Cancel
 router.post('/CancelProdnOrdConf', sapController.CancelProdnOrdConf);
 
-// POST route for pocancel
-router.post('/pocancel', sapController.pocancel);
+// POST route for Production order confirmation cancel
+router.post('/production-order-confirmation-cancel', sapController.productionOrderConfirmationCancel);
 
 // POST route for Prd Order Confirmation
 router.post('/prdorderconfirmation', sapController.postPrdOrderConfirmation);

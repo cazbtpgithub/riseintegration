@@ -344,9 +344,9 @@ const cancelMaterialDocument = async (params) => {
 };
 
 /**
- * Fetch a CSRF token specifically for Production Order API.
+ * Fetch a CSRF token specifically for Inspection Result Record API.
  */
-const fetchProductionOrderCsrfToken = async () => {
+const fetchInspectionResultRecordCsrfToken = async () => {
     try {
         const url = `${getSapBaseUrl()}/sap/opu/odata/sap/ZQM_QA32_CHAR_CHANGE_SRV/?sap-client=110`;
         const response = await axios.get(url, {
@@ -360,17 +360,17 @@ const fetchProductionOrderCsrfToken = async () => {
         const cookies = response.headers['set-cookie'];
         return { token, cookies };
     } catch (error) {
-        console.error('Failed to fetch Production Order CSRF token:', error.response ? error.response.data : error.message);
-        throw new Error('Could not retrieve CSRF token for Production Order API');
+        console.error('Failed to fetch Inspection Result Record CSRF token:', error.response ? error.response.data : error.message);
+        throw new Error('Could not retrieve CSRF token for Inspection Result Record API');
     }
 };
 
 /**
- * Post Production Order to SAP.
+ * Post Inspection Result Record to SAP.
  */
-const postProductionOrder = async (payload) => {
+const postInspectionResultRecord = async (payload) => {
     try {
-        const { token, cookies } = await fetchProductionOrderCsrfToken();
+        const { token, cookies } = await fetchInspectionResultRecordCsrfToken();
         if (!token) {
             throw new Error('No CSRF token returned from SAP');
         }
@@ -389,7 +389,7 @@ const postProductionOrder = async (payload) => {
         // The response might be wrapped in .d for OData V2
         return response.data.d || response.data;
     } catch (error) {
-        console.error('Production Order POST request failed:', error.response ? error.response.data : error.message);
+        console.error('Inspection Result Record POST request failed:', error.response ? error.response.data : error.message);
         const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
         const err = new Error(errMsg);
         err.statusCode = error.response ? error.response.status : 500;
@@ -521,9 +521,9 @@ const CancelProdnOrdConf = async (params) => {
 };
 
 /**
- * Cancel PO (pocancel).
+ * Production order confirmation cancel.
  */
-const pocancel = async (params) => {
+const productionOrderConfirmationCancel = async (params) => {
     try {
         const { token, cookies } = await fetchProdOrderConfCancelCsrfToken(); // Reusing the same CSRF fetch logic
         if (!token) {
@@ -533,7 +533,7 @@ const pocancel = async (params) => {
         let queryParams = '';
         if (params && Object.keys(params).length > 0) {
             queryParams = Object.keys(params)
-                .map(key => `${key}='${params[key]}'`)
+                .map(key => `${key}=%27${params[key]}%27`)
                 .join('&');
         }
         
@@ -544,7 +544,7 @@ const pocancel = async (params) => {
             url += `?sap-client=110`;
         }
 
-        const response = await axios.post(url, {}, {
+        const response = await axios.post(url, params, {
             auth: getSapAuth(),
             headers: {
                 'X-CSRF-Token': token,
@@ -556,7 +556,7 @@ const pocancel = async (params) => {
 
         return response.data.d || response.data;
     } catch (error) {
-        console.error('PO Cancel POST request failed:', error.response ? error.response.data : error.message);
+        console.error('Production Order Confirmation Cancel POST request failed:', error.response ? error.response.data : error.message);
         const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
         const err = new Error(errMsg);
         err.statusCode = error.response ? error.response.status : 500;
@@ -674,10 +674,10 @@ module.exports = {
     getInspectionResultValue,
     postMaterialDocumentHeader,
     cancelMaterialDocument,
-    postProductionOrder,
+    postInspectionResultRecord,
     postInspectionLot,
     CancelProdnOrdConf,
-    pocancel,
+    productionOrderConfirmationCancel,
     postPrdOrderConfirmation,
     getProductionOrderDetails
 };

@@ -151,23 +151,23 @@ const getInspectionResultValue = async (req, res) => {
 };
 
 /**
- * Controller to handle Material Document Header creation requests.
+ * Controller to handle Stock transfer from storageloc to storagelocation (311 movement) creation requests.
  */
-const postMaterialDocumentHeader = async (req, res) => {
+const postStockTransferStorageLocToStorageLoc = async (req, res) => {
     try {
         const payload = req.body || {};
         const data = await sapODataService.postMaterialDocumentHeader(payload);
 
         res.status(201).json({
-            Message: 'Material Document Header created successfully',
+            Message: 'Stock transfer from storageloc to storagelocation created successfully',
             StatusCode: 201,
             Data: data
         });
     } catch (error) {
-        console.error('Error in postMaterialDocumentHeader controller:', error.message);
+        console.error('Error in postStockTransferStorageLocToStorageLoc controller:', error.message);
         const statusCode = error.statusCode || 500;
         res.status(statusCode).json({
-            Message: error.message || 'Failed to create Material Document Header',
+            Message: error.message || 'Failed to create Stock transfer from storageloc to storagelocation',
             StatusCode: statusCode,
             Data: []
         });
@@ -253,6 +253,32 @@ const postStockTransferMaterialToMaterial = async (req, res) => {
 };
 
 /**
+ * Controller to handle Stock Transfer from Quality to unrestricted (321 movement).
+ * This hits the same SAP endpoint as Material Document Header but serves a different business process.
+ */
+const postStockTransferQualityToUnrestricted = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        // Re-use the existing service logic since the SAP API endpoint is exactly the same!
+        const data = await sapODataService.postMaterialDocumentHeader(payload);
+
+        res.status(201).json({
+            Message: 'Stock Transfer from Quality to unrestricted created successfully',
+            StatusCode: 201,
+            Data: data
+        });
+    } catch (error) {
+        console.error('Error in postStockTransferQualityToUnrestricted controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to create Stock Transfer from Quality to unrestricted',
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
+/**
  * Controller to handle Material Document Cancel.
  */
 const cancelMaterialDocument = async (req, res) => {
@@ -277,23 +303,23 @@ const cancelMaterialDocument = async (req, res) => {
 };
 
 /**
- * Controller to handle Production Order creation requests.
+ * Controller to handle Inspection Result Record creation requests.
  */
-const postProductionOrder = async (req, res) => {
+const postInspectionResultRecord = async (req, res) => {
     try {
         const payload = req.body || {};
-        const data = await sapODataService.postProductionOrder(payload);
+        const data = await sapODataService.postInspectionResultRecord(payload);
 
         res.status(201).json({
-            Message: 'Production Order created successfully',
+            Message: 'Inspection Result Record created successfully',
             StatusCode: 201,
             Data: data
         });
     } catch (error) {
-        console.error('Error in postProductionOrder controller:', error.message);
+        console.error('Error in postInspectionResultRecord controller:', error.message);
         const statusCode = error.statusCode || 500;
         res.status(statusCode).json({
-            Message: error.message || 'Failed to create Production Order',
+            Message: error.message || 'Failed to create Inspection Result Record',
             StatusCode: statusCode,
             Data: []
         });
@@ -349,23 +375,23 @@ const CancelProdnOrdConf = async (req, res) => {
 };
 
 /**
- * Controller to handle pocancel.
+ * Controller to handle Production order confirmation cancel.
  */
-const pocancel = async (req, res) => {
+const productionOrderConfirmationCancel = async (req, res) => {
     try {
         const params = req.body || req.query || {};
-        const data = await sapODataService.pocancel(params);
+        const data = await sapODataService.productionOrderConfirmationCancel(params);
 
         res.status(200).json({
-            Message: 'PO Cancelled successfully',
+            Message: 'Production Order Confirmation Cancelled successfully',
             StatusCode: 200,
             Data: data
         });
     } catch (error) {
-        console.error('Error in pocancel controller:', error.message);
+        console.error('Error in productionOrderConfirmationCancel controller:', error.message);
         const statusCode = error.statusCode || 500;
         res.status(statusCode).json({
-            Message: error.message || 'Failed to cancel PO',
+            Message: error.message || 'Failed to cancel Production Order Confirmation',
             StatusCode: statusCode,
             Data: []
         });
@@ -427,15 +453,16 @@ module.exports = {
     callODataRFC,
     getMaterialStock,
     getInspectionResultValue,
-    postMaterialDocumentHeader,
+    postStockTransferStorageLocToStorageLoc,
     postGoodsIssueProcessOrder,
     postGoodsIssueCostCenter,
     postStockTransferMaterialToMaterial,
+    postStockTransferQualityToUnrestricted,
     cancelMaterialDocument,
-    postProductionOrder,
+    postInspectionResultRecord,
     postInspectionLot,
     CancelProdnOrdConf,
-    pocancel,
+    productionOrderConfirmationCancel,
     postPrdOrderConfirmation,
     getProductionOrderDetails
 };
