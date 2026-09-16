@@ -666,6 +666,110 @@ const getProductionOrderDetails = async (params) => {
     }
 };
 
+/**
+ * Fetch Material List from SAP S/4HANA using ZMM_MATERIAL_DETAILS_SRV OData service.
+ * Handles single material, material range, material type, creation date / date range, or combined filters.
+ */
+const getMaterialList = async (params = {}) => {
+    try {
+        const filters = [];
+
+        // 1. Date / Date Range (Ersda) - processed first to align with SAP SEGW expectations
+        const ersdaFrom = params.ErsdaFrom || params.ersdaFrom || params.DateFrom || params.fromDate || params.Ersda || params.ersda;
+        const ersdaTo = params.ErsdaTo || params.ersdaTo || params.DateTo || params.toDate;
+
+        const formatODataDatetime = (dateVal, isEnd = false) => {
+            if (!dateVal) return '';
+            const strVal = String(dateVal).trim();
+            if (strVal.startsWith("datetime'")) return strVal;
+            let cleanDate = strVal;
+            if (cleanDate.length === 10) { // e.g. "2025-03-29"
+                cleanDate = isEnd ? `${cleanDate}T23:59:59` : `${cleanDate}T00:00:00`;
+            }
+            return `datetime'${cleanDate}'`;
+        };
+
+        if (ersdaFrom && ersdaTo) {
+            const formattedFrom = formatODataDatetime(ersdaFrom, false);
+            const formattedTo = formatODataDatetime(ersdaTo, true);
+            filters.push(`Ersda ge ${formattedFrom} and Ersda le ${formattedTo}`);
+        } else if (ersdaFrom) {
+            const formattedFrom = formatODataDatetime(ersdaFrom, false);
+            if (!ersdaTo && typeof ersdaFrom === 'string' && ersdaFrom.trim().length === 10) {
+                const formattedTo = formatODataDatetime(ersdaFrom, true);
+                filters.push(`Ersda ge ${formattedFrom} and Ersda le ${formattedTo}`);
+            } else {
+                filters.push(`Ersda ge ${formattedFrom}`);
+            }
+        } else if (ersdaTo) {
+            const formattedTo = formatODataDatetime(ersdaTo, true);
+            filters.push(`Ersda le ${formattedTo}`);
+        }
+
+        // 2. Material Number (Single or Range)
+        const matnr = params.Matnr || params.matnr || params.material || params.Material;
+        const matnrFrom = params.MatnrFrom || params.matnrFrom || params.MatnrLow || params.MaterialFrom;
+        const matnrTo = params.MatnrTo || params.matnrTo || params.MatnrHigh || params.MaterialTo;
+
+        if (matnrFrom && matnrTo) {
+            filters.push(`Matnr ge '${matnrFrom}' and Matnr le '${matnrTo}'`);
+        } else if (matnrFrom) {
+            filters.push(`Matnr ge '${matnrFrom}'`);
+        } else if (matnrTo) {
+            filters.push(`Matnr le '${matnrTo}'`);
+        } else if (matnr) {
+            filters.push(`Matnr eq '${matnr}'`);
+        }
+
+        // 3. Material Type (Mtart)
+        const mtart = params.Mtart || params.mtart || params.materialType || params.MaterialType;
+        if (mtart) {
+            filters.push(`Mtart eq '${mtart}'`);
+        }
+
+        // Direct custom $filter override if provided
+        if (params.$filter) {
+            filters.push(params.$filter);
+        }
+
+        let filterQuery = '';
+        if (filters.length > 0) {
+            filterQuery = `$filter=${filters.join(' and ')}&`;
+        }
+
+        const sapClient = params.sapClient || params['sap-client'] || '110';
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/ZMM_MATERIAL_DETAILS_SRV/MaterialSet?${filterQuery}sap-client=${sapClient}&$format=json`;
+
+        console.log(`[getMaterialList] Calling SAP OData URL: ${url}`);
+
+        const response = await axios.get(url, {
+            auth: getSapAuth(),
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        let results = [];
+        if (response.data && response.data.d && response.data.d.results) {
+            results = response.data.d.results;
+        } else if (response.data && response.data.d) {
+            results = Array.isArray(response.data.d) ? response.data.d : [response.data.d];
+        } else if (response.data && response.data.value) {
+            results = response.data.value;
+        } else {
+            results = Array.isArray(response.data) ? response.data : [response.data];
+        }
+
+        return results;
+    } catch (error) {
+        console.error('Material List GET request failed:', error.response ? error.response.data : error.message);
+        const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+        const err = new Error(errMsg);
+        err.statusCode = error.response ? error.response.status : 500;
+        throw err;
+    }
+};
+
 module.exports = {
     fetchData,
     postData,
@@ -679,5 +783,7 @@ module.exports = {
     CancelProdnOrdConf,
     productionOrderConfirmationCancel,
     postPrdOrderConfirmation,
-    getProductionOrderDetails
+    getProductionOrderDetails,
+    getMaterialList
 };
+

@@ -446,6 +446,31 @@ const getProductionOrderDetails = async (req, res) => {
     }
 };
 
+/**
+ * Controller to handle Material List requests.
+ * Supports query parameters (GET) and request body (POST).
+ */
+const getMaterialList = async (req, res) => {
+    try {
+        const params = { ...(req.query || {}), ...(req.body || {}) };
+        const data = await sapODataService.getMaterialList(params);
+
+        res.status(200).json({
+            Message: 'Material list retrieved successfully',
+            StatusCode: 200,
+            Data: data
+        });
+    } catch (error) {
+        console.error('Error in getMaterialList controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to fetch Material list',
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
 module.exports = {
     getSAPData,
     postSAPData,
@@ -464,5 +489,7 @@ module.exports = {
     CancelProdnOrdConf,
     productionOrderConfirmationCancel,
     postPrdOrderConfirmation,
-    getProductionOrderDetails
+    getProductionOrderDetails,
+    getMaterialList
 };
+

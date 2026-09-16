@@ -56,4 +56,9 @@ router.post('/prdorderconfirmation', sapController.postPrdOrderConfirmation);
 // POST route for Production Order Details
 router.post('/prodordergetdetails', sapController.getProductionOrderDetails);
 
+// GET & POST routes for Material List
+router.get('/get-material-list', sapController.getMaterialList);
+router.post('/get-material-list', sapController.getMaterialList);
+
 module.exports = router;
+
