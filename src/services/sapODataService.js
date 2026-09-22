@@ -770,6 +770,43 @@ const getMaterialList = async (params = {}) => {
     }
 };
 
+/**
+ * Fetch Inspection Lot details for a given Material Document and Year from SAP OData ZMM_INSP_LOT_SRV.
+ * SAP Endpoint: /sap/opu/odata/sap/ZMM_INSP_LOT_SRV/MaterialdocSet(Mblnr='<mblnr>',Gjahr='<gjahr>')
+ */
+const getMaterialDocInspLot = async (mblnr, gjahr) => {
+    try {
+        const sapClient = '110';
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/ZMM_INSP_LOT_SRV/MaterialdocSet(Mblnr='${mblnr}',Gjahr='${gjahr}')?sap-client=${sapClient}&$format=json`;
+
+        console.log(`[getMaterialDocInspLot] Calling SAP OData URL: ${url}`);
+
+        const response = await axios.get(url, {
+            auth: getSapAuth(),
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        const rawData = (response.data && response.data.d) ? response.data.d : response.data;
+        const result = {
+            Mblnr: rawData.Mblnr || mblnr,
+            Gjahr: rawData.Gjahr || gjahr,
+            InspLot: rawData.InspLot || '',
+            Type: rawData.Type || '',
+            Message: rawData.Message || ''
+        };
+
+        return result;
+    } catch (error) {
+        console.error('getMaterialDocInspLot GET request failed:', error.response ? error.response.data : error.message);
+        const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+        const err = new Error(errMsg);
+        err.statusCode = error.response ? error.response.status : 500;
+        throw err;
+    }
+};
+
 module.exports = {
     fetchData,
     postData,
@@ -777,6 +814,7 @@ module.exports = {
     getMaterialStock,
     getInspectionResultValue,
     postMaterialDocumentHeader,
+    getMaterialDocInspLot,
     cancelMaterialDocument,
     postInspectionResultRecord,
     postInspectionLot,

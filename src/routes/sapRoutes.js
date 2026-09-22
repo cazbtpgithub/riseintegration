@@ -23,6 +23,13 @@ router.post('/inspection-result-value', sapController.getInspectionResultValue);
 // POST route for Stock transfer from storageloc to storagelocation (311 Movement)
 router.post('/stock-transfer-from-storageloc-to-storagelocation', sapController.postStockTransferStorageLocToStorageLoc);
 
+// POST route for Stock transfer from storageloc to storagelocation -01 (Concluded inspection lot response)
+router.post([
+    '/stock-transfer-from-storageloc-to-storagelocation-01',
+    '/stock-transfer-from-storageloc-to-storagelocation_01',
+    '/stock-transfer-from-storageloc-to-storagelocation _01'
+], sapController.postStockTransferStorageLocToStorageLoc_01);
+
 // POST route for Goods Issue on Process Order (261 Movement)
 router.post('/goods-issue-process-order', sapController.postGoodsIssueProcessOrder);
 
