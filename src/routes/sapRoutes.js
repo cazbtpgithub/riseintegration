@@ -51,6 +51,12 @@ router.post('/Inspection-Result-Record', sapController.postInspectionResultRecor
 // POST route for Inspection Lot
 router.post('/inspection-lot', sapController.postInspectionLot);
 
+// POST route for Inspection Lot -01 (Fetch ChangedDateTime and post to A_InspLotMatlDocItem)
+router.post([
+    '/inspection-lot-01',
+    '/inspection-lot_01'
+], sapController.postInspectionLot_01);
+
 // POST route for Production Order Confirmation Cancel
 router.post('/CancelProdnOrdConf', sapController.CancelProdnOrdConf);
 

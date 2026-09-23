@@ -452,6 +452,135 @@ const postInspectionLot = async (payload) => {
 };
 
 /**
+ * Fetch a CSRF token specifically for API_INSPECTIONLOT_SRV.
+ */
+const fetchApiInspectionLotCsrfToken = async () => {
+    try {
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/API_INSPECTIONLOT_SRV/?sap-client=110`;
+        const response = await axios.get(url, {
+            auth: getSapAuth(),
+            headers: {
+                'X-CSRF-Token': 'Fetch',
+                'Accept': 'application/json'
+            }
+        });
+        const token = response.headers['x-csrf-token'];
+        const cookies = response.headers['set-cookie'];
+        return { token, cookies };
+    } catch (error) {
+        console.error('Failed to fetch API_INSPECTIONLOT_SRV CSRF token:', error.response ? error.response.data : error.message);
+        throw new Error('Could not retrieve CSRF token for API_INSPECTIONLOT_SRV');
+    }
+};
+
+/**
+ * Fetch Inspection Lot header (InspectionLot, ChangedDateTime) from SAP API_INSPECTIONLOT_SRV.
+ */
+const getInspectionLotHeader = async (inspectionLot) => {
+    try {
+        const lotNumber = String(inspectionLot).trim();
+        const formattedLot = /^\d+$/.test(lotNumber) ? lotNumber.padStart(12, '0') : lotNumber;
+        const url = `${getSapBaseUrl()}/sap/opu/odata/sap/API_INSPECTIONLOT_SRV/A_InspectionLot('${formattedLot}')?sap-client=110&$select=InspectionLot,ChangedDateTime&$format=json`;
+
+        const response = await axios.get(url, {
+            auth: getSapAuth(),
+            headers: {
+                'X-CSRF-Token': 'Fetch',
+                'Accept': 'application/json'
+            }
+        });
+
+        const data = response.data.d || response.data;
+        return {
+            data,
+            csrfToken: response.headers['x-csrf-token'],
+            cookies: response.headers['set-cookie']
+        };
+    } catch (error) {
+        console.error('Inspection Lot GET request failed:', error.response ? error.response.data : error.message);
+        const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+        const err = new Error(errMsg);
+        err.statusCode = error.response ? error.response.status : 500;
+        throw err;
+    }
+};
+
+/**
+ * Post Inspection Lot -01:
+ * 1. Fetch InspectionLot & ChangedDateTime from SAP GET API A_InspectionLot.
+ * 2. Post InspectionLot, InspLotQtyPosted, UsageDecisionStockType, ChangedDateTime to SAP POST API A_InspLotMatlDocItem.
+ */
+const postInspectionLot_01 = async (payload) => {
+    try {
+        const rawInspectionLot = payload.InspectionLot;
+        if (!rawInspectionLot) {
+            const err = new Error('InspectionLot is required in payload');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        // 1. Fetch InspectionLot & ChangedDateTime from SAP GET API
+        const lotHeader = await getInspectionLotHeader(rawInspectionLot);
+        const sapLotData = lotHeader.data || {};
+        const changedDateTime = sapLotData.ChangedDateTime;
+
+        let token = lotHeader.csrfToken;
+        let cookies = lotHeader.cookies;
+
+        if (!token) {
+            const csrfRes = await fetchApiInspectionLotCsrfToken();
+            token = csrfRes.token;
+            cookies = csrfRes.cookies;
+        }
+
+        if (!token) {
+            throw new Error('No CSRF token returned from SAP for API_INSPECTIONLOT_SRV');
+        }
+
+        // 2. Prepare payload for SAP POST API A_InspLotMatlDocItem
+        const postPayload = {
+            InspectionLot: String(sapLotData.InspectionLot || rawInspectionLot),
+            InspLotQtyPosted: String(payload.InspLotQtyPosted !== undefined ? payload.InspLotQtyPosted : ''),
+            UsageDecisionStockType: String(payload.UsageDecisionStockType || ''),
+            ChangedDateTime: changedDateTime
+        };
+
+        if (payload.StorageLocation) {
+            postPayload.StorageLocation = String(payload.StorageLocation);
+        }
+        if (payload.InspLotMaterialPostedTo) {
+            postPayload.InspLotMaterialPostedTo = String(payload.InspLotMaterialPostedTo);
+        }
+        if (payload.InspLotBatchTransferredTo) {
+            postPayload.InspLotBatchTransferredTo = String(payload.InspLotBatchTransferredTo);
+        }
+        if (payload.MaterialDocumentItemText) {
+            postPayload.MaterialDocumentItemText = String(payload.MaterialDocumentItemText);
+        }
+
+        // 3. Post to SAP A_InspLotMatlDocItem
+        const postUrl = `${getSapBaseUrl()}/sap/opu/odata/sap/API_INSPECTIONLOT_SRV/A_InspLotMatlDocItem?sap-client=110`;
+        const response = await axios.post(postUrl, postPayload, {
+            auth: getSapAuth(),
+            headers: {
+                'X-CSRF-Token': token,
+                'Cookie': cookies ? (Array.isArray(cookies) ? cookies.join('; ') : cookies) : '',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        return response.data.d || response.data;
+    } catch (error) {
+        console.error('Inspection Lot -01 POST request failed:', error.response ? error.response.data : error.message);
+        const errMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+        const err = new Error(errMsg);
+        err.statusCode = error.statusCode || (error.response ? error.response.status : 500);
+        throw err;
+    }
+};
+
+/**
  * Fetch a CSRF token specifically for Production Order Confirmation Cancel API.
  */
 const fetchProdOrderConfCancelCsrfToken = async () => {
@@ -818,6 +947,9 @@ module.exports = {
     cancelMaterialDocument,
     postInspectionResultRecord,
     postInspectionLot,
+    getInspectionLotHeader,
+    fetchApiInspectionLotCsrfToken,
+    postInspectionLot_01,
     CancelProdnOrdConf,
     productionOrderConfirmationCancel,
     postPrdOrderConfirmation,

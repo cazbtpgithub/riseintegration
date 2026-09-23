@@ -412,6 +412,41 @@ const postInspectionLot = async (req, res) => {
 };
 
 /**
+ * Controller to handle Inspection Lot -01 requests:
+ * 1. Takes InspectionLot, InspLotQtyPosted, UsageDecisionStockType.
+ * 2. Fetches InspectionLot and ChangedDateTime from SAP GET API.
+ * 3. Posts to SAP A_InspLotMatlDocItem with merged payload.
+ */
+const postInspectionLot_01 = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        const data = await sapODataService.postInspectionLot_01(payload);
+
+        res.status(201).json({
+            Message: 'Inspection Lot MatlDocItem processed successfully',
+            StatusCode: 201,
+            Data: data
+        });
+    } catch (error) {
+        console.error('Error in postInspectionLot_01 controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        let errorMessage = error.message || 'Failed to process Inspection Lot -01';
+        try {
+            const parsed = JSON.parse(error.message);
+            if (parsed && parsed.error && parsed.error.message && parsed.error.message.value) {
+                errorMessage = parsed.error.message.value;
+            }
+        } catch (_) {}
+
+        res.status(statusCode).json({
+            Message: errorMessage,
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
+/**
  * Controller to handle Production Order Confirmation Cancel.
  */
 const CancelProdnOrdConf = async (req, res) => {
@@ -548,6 +583,7 @@ module.exports = {
     cancelMaterialDocument,
     postInspectionResultRecord,
     postInspectionLot,
+    postInspectionLot_01,
     CancelProdnOrdConf,
     productionOrderConfirmationCancel,
     postPrdOrderConfirmation,
