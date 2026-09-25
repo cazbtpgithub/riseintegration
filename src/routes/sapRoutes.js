@@ -39,6 +39,13 @@ router.post('/goods-issue-cost-center', sapController.postGoodsIssueCostCenter);
 // POST route for Stock transfer material to material (309 Movement)
 router.post('/stock-transfer-material-to-material', sapController.postStockTransferMaterialToMaterial);
 
+// POST route for Stock transfer material to material -01 (Concluded inspection lot response)
+router.post([
+    '/stock-transfer-material-to-material-01',
+    '/stock-transfer-material-to-material_01',
+    '/stock-transfer-material-to-material _01'
+], sapController.postStockTransferMaterialToMaterial_01);
+
 // POST route for Stock Transfer from Quality to unrestricted (321 Movement)
 router.post('/stock-transfer-from-quality-to-unrestricted', sapController.postStockTransferQualityToUnrestricted);
 

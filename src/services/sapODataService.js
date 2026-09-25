@@ -918,12 +918,14 @@ const getMaterialDocInspLot = async (mblnr, gjahr) => {
         });
 
         const rawData = (response.data && response.data.d) ? response.data.d : response.data;
+        const { __metadata, ...cleanData } = rawData || {};
         const result = {
-            Mblnr: rawData.Mblnr || mblnr,
-            Gjahr: rawData.Gjahr || gjahr,
-            InspLot: rawData.InspLot || '',
-            Type: rawData.Type || '',
-            Message: rawData.Message || ''
+            ...cleanData,
+            Mblnr: cleanData.Mblnr || mblnr,
+            Gjahr: cleanData.Gjahr || gjahr,
+            InspLot: cleanData.InspLot || '',
+            Type: cleanData.Type || '',
+            Message: cleanData.Message || ''
         };
 
         return result;

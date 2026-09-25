@@ -314,6 +314,67 @@ const postStockTransferMaterialToMaterial = async (req, res) => {
 };
 
 /**
+ * Controller to handle Stock transfer material to material -01 (309 movement).
+ * 1. Creates stock transfer via postMaterialDocumentHeader (same functionality as /stock-transfer-material-to-material).
+ * 2. Extracts MaterialDocument and MaterialDocumentYear from the created response.
+ * 3. Waits 2 seconds for SAP processing.
+ * 4. Calls SAP API ZMM_INSP_LOT_SRV/MaterialdocSet(Mblnr='...',Gjahr='...') to get the concluded inspection lot data.
+ * 5. Returns both responses together as Data01 (post response) and Data02 (get response).
+ */
+const postStockTransferMaterialToMaterial_01 = async (req, res) => {
+    try {
+        const payload = req.body || {};
+        let materialDocument = payload.MaterialDocument;
+        let materialDocumentYear = payload.MaterialDocumentYear;
+        let stockTransferData = null;
+
+        // If MaterialDocument and MaterialDocumentYear are not directly passed in payload, execute stock transfer first
+        if (!materialDocument || !materialDocumentYear) {
+            stockTransferData = await sapODataService.postMaterialDocumentHeader(payload);
+            materialDocument = stockTransferData.MaterialDocument;
+            materialDocumentYear = stockTransferData.MaterialDocumentYear;
+        } else {
+            stockTransferData = {
+                MaterialDocument: materialDocument,
+                MaterialDocumentYear: materialDocumentYear,
+                ...payload
+            };
+        }
+
+        if (!materialDocument || !materialDocumentYear) {
+            return res.status(500).json({
+                Message: 'Failed to extract MaterialDocument or MaterialDocumentYear from stock transfer response',
+                StatusCode: 500,
+                Data01: stockTransferData || {},
+                Data02: {}
+            });
+        }
+
+        // Wait 2 seconds before calling internal SAP GET API to allow SAP processing to complete
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Fetch concluded inspection lot data from SAP ZMM_INSP_LOT_SRV
+        const inspLotData = await sapODataService.getMaterialDocInspLot(materialDocument, materialDocumentYear);
+
+        res.status(200).json({
+            Message: 'Stock transfer material to material created successfully',
+            StatusCode: 200,
+            Data01: stockTransferData,
+            Data02: inspLotData
+        });
+    } catch (error) {
+        console.error('Error in postStockTransferMaterialToMaterial_01 controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to process Stock transfer material to material -01',
+            StatusCode: statusCode,
+            Data01: {},
+            Data02: {}
+        });
+    }
+};
+
+/**
  * Controller to handle Stock Transfer from Quality to unrestricted (321 movement).
  * This hits the same SAP endpoint as Material Document Header but serves a different business process.
  */
@@ -579,6 +640,7 @@ module.exports = {
     postGoodsIssueProcessOrder,
     postGoodsIssueCostCenter,
     postStockTransferMaterialToMaterial,
+    postStockTransferMaterialToMaterial_01,
     postStockTransferQualityToUnrestricted,
     cancelMaterialDocument,
     postInspectionResultRecord,
