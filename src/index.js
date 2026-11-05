@@ -39,6 +39,12 @@ app.get('/ud-reversal/:lotNumber', sapController.getUdReversal);
 app.post('/ud-reversal', sapController.postUdReversal);
 app.post('/ud-reversal/:lotNumber', sapController.postUdReversal);
 
+// Direct routes for check-posting-period
+app.get('/check-posting-period', sapController.getPostingPeriodCheck);
+app.get('/check-posting-period/:budat', sapController.getPostingPeriodCheck);
+app.post('/check-posting-period', sapController.checkPostingPeriod);
+app.post('/check-posting-period/:budat', sapController.checkPostingPeriod);
+
 
 
 

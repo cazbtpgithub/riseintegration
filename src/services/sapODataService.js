@@ -1444,6 +1444,157 @@ const postUdReversal = async (params = {}, customHeaders = {}) => {
 
 const udReversal = postUdReversal;
 
+/**
+ * GET CSRF token and service metadata for Posting Period Check service (ZPOSTING_PERIOD_CHECK_SRV).
+ * GET http://vhwclds4ap01.sap.wco.com:8000/sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/?sap-client=110
+ */
+const getPostingPeriodCheckToken = async (params = {}) => {
+    try {
+        const baseAuth = getSapAuth();
+        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
+        const auth = {
+            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
+            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
+        };
+
+        const baseUrl = params.baseUrl || getSapBaseUrl();
+        const url = `${baseUrl}/sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/?sap-client=110`;
+        const response = await axios.get(url, {
+            auth,
+            headers: {
+                'X-CSRF-Token': 'Fetch',
+                'Accept': 'application/json'
+            }
+        });
+
+        const token = response.headers['x-csrf-token'];
+        const cookies = response.headers['set-cookie'];
+        return {
+            CSRFToken: token,
+            Cookies: cookies,
+            StatusCode: response.status,
+            ServiceMetadata: response.data
+        };
+    } catch (error) {
+        console.error('Failed to get Posting Period Check CSRF token:', error.response ? error.response.data : error.message);
+        let errMsg = error.message;
+        if (error.response?.data?.error?.message?.value) {
+            errMsg = error.response.data.error.message.value;
+        } else if (error.response?.data) {
+            errMsg = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
+        }
+        const err = new Error(errMsg);
+        err.statusCode = error.statusCode || (error.response ? error.response.status : 500);
+        throw err;
+    }
+};
+
+const fetchPostingPeriodCheckCsrfToken = async (baseUrl, auth) => {
+    const res = await getPostingPeriodCheckToken({ baseUrl, username: auth.username, password: auth.password });
+    return { token: res.CSRFToken, cookies: res.Cookies };
+};
+
+/**
+ * Service to process Posting Period Check via ZPOSTING_PERIOD_CHECK_SRV.
+ * Flow:
+ * 1. GET CSRF token and cookies from /sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/?sap-client=110
+ * 2. POST to /sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/zperiod_checkSet?sap-client=110 with payload & CSRF token
+ * 3. Return created entity data
+ */
+const checkPostingPeriod = async (params = {}, customHeaders = {}) => {
+    try {
+        const baseAuth = getSapAuth();
+        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
+        const auth = {
+            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
+            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
+        };
+
+        const baseUrl = params.baseUrl || getSapBaseUrl();
+
+        // Step 1: Use passed CSRF token or fetch a fresh one
+        let csrfToken = customHeaders['x-csrf-token'] || customHeaders['X-CSRF-Token'] || params.csrfToken || params.token;
+        let cookies = customHeaders['cookie'] || customHeaders['Cookie'] || params.cookies;
+
+        if (!csrfToken || !cookies) {
+            const tokenRes = await getPostingPeriodCheckToken({ baseUrl, username: auth.username, password: auth.password });
+            if (!csrfToken) {
+                csrfToken = tokenRes.CSRFToken;
+            }
+            if (!cookies) {
+                cookies = tokenRes.Cookies;
+            }
+        }
+
+        if (!csrfToken) {
+            throw new Error('No CSRF token returned from SAP for Posting Period Check API');
+        }
+
+        // Format default date YYYYMMDD
+        const now = new Date();
+        const defaultBudat = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+
+        const rawDate = 
+            params.BUDAT || 
+            params.budat || 
+            params.postingDate || 
+            params.PostingDate || 
+            params.date || 
+            defaultBudat;
+
+        // Clean up date string (e.g. 2026-11-05 -> 20261105)
+        const cleanBudat = String(rawDate).replace(/[-/.]/g, '').trim();
+
+        const payload = {
+            BUDAT: cleanBudat,
+            STATUS: params.STATUS !== undefined ? params.STATUS : '',
+            MESSAGE: params.MESSAGE !== undefined ? params.MESSAGE : ''
+        };
+
+        // Step 2: Post to zperiod_checkSet
+        const postUrl = `${baseUrl}/sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/zperiod_checkSet?sap-client=110`;
+        const postHeaders = {
+            'X-CSRF-Token': csrfToken,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        if (cookies) {
+            postHeaders['Cookie'] = Array.isArray(cookies) 
+                ? cookies.map(c => c.split(';')[0]).join('; ') 
+                : cookies;
+        }
+
+        const response = await axios.post(postUrl, payload, {
+            auth,
+            headers: postHeaders
+        });
+
+        const data = response.data?.d || response.data;
+
+        return {
+            BUDAT: payload.BUDAT,
+            STATUS: data?.STATUS !== undefined ? data.STATUS : payload.STATUS,
+            MESSAGE: data?.MESSAGE !== undefined ? data.MESSAGE : 'Posting period check executed successfully',
+            CSRFToken: csrfToken,
+            StatusCode: response.status,
+            Data: data
+        };
+    } catch (error) {
+        console.error('Posting Period Check request failed:', error.response ? error.response.data : error.message);
+        let errMsg = error.message;
+        if (error.response?.data?.error?.message?.value) {
+            errMsg = error.response.data.error.message.value;
+        } else if (error.response?.data) {
+            errMsg = typeof error.response.data === 'object' ? JSON.stringify(error.response.data) : error.response.data;
+        }
+        const err = new Error(errMsg);
+        err.statusCode = error.statusCode || (error.response ? error.response.status : 500);
+        throw err;
+    }
+};
+
+const postPostingPeriodCheck = checkPostingPeriod;
+
 module.exports = {
     fetchData,
     postData,
@@ -1470,7 +1621,11 @@ module.exports = {
     fetchUdReversalCsrfToken,
     getUdReversalToken,
     postUdReversal,
-    udReversal
+    udReversal,
+    getPostingPeriodCheckToken,
+    fetchPostingPeriodCheckCsrfToken,
+    checkPostingPeriod,
+    postPostingPeriodCheck
 };
 
 

@@ -849,6 +849,91 @@ const postUdReversal = async (req, res) => {
 
 const udReversal = postUdReversal;
 
+/**
+ * Controller to handle GET requests for Posting Period Check (fetches CSRF token and service metadata).
+ * GET http://localhost:3000/check-posting-period
+ */
+const getPostingPeriodCheck = async (req, res) => {
+    try {
+        const params = {
+            ...(req.query || {}),
+            ...(req.params || {})
+        };
+
+        // If specific date is provided in query/params or execute is requested, run the check
+        if (params.BUDAT || params.budat || params.date || params.postingDate || params.execute === 'true') {
+            const data = await sapODataService.checkPostingPeriod(params, req.headers);
+            return res.status(200).json({
+                Message: data?.MESSAGE || 'Posting period check processed successfully',
+                StatusCode: 200,
+                Data: data
+            });
+        }
+
+        // Standard GET: fetch CSRF token and metadata from SAP
+        const data = await sapODataService.getPostingPeriodCheckToken(params);
+
+        res.status(200).json({
+            Message: 'Posting period check CSRF token and service metadata retrieved successfully',
+            StatusCode: 200,
+            CSRFToken: data.CSRFToken,
+            Cookies: data.Cookies,
+            Data: data.ServiceMetadata
+        });
+    } catch (error) {
+        console.error('Error in getPostingPeriodCheck controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to fetch Posting period check CSRF token from SAP',
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
+/**
+ * Controller to handle POST requests for Posting Period Check (posts BUDAT payload with CSRF token).
+ * POST http://localhost:3000/check-posting-period
+ */
+const checkPostingPeriod = async (req, res) => {
+    try {
+        const payload = {
+            ...(req.query || {}),
+            ...(req.params || {}),
+            ...(req.body || {})
+        };
+
+        const dynamicDate = 
+            payload.BUDAT || 
+            payload.budat || 
+            payload.postingDate || 
+            payload.PostingDate || 
+            payload.date;
+
+        if (dynamicDate) {
+            payload.BUDAT = String(dynamicDate).trim();
+        }
+
+        const data = await sapODataService.checkPostingPeriod(payload, req.headers);
+
+        res.status(200).json({
+            Message: data?.MESSAGE || 'Posting period check processed successfully',
+            StatusCode: 200,
+            Data: data
+        });
+    } catch (error) {
+        console.error('Error in checkPostingPeriod controller:', error.message);
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+            Message: error.message || 'Failed to process posting period check',
+            StatusCode: statusCode,
+            Data: []
+        });
+    }
+};
+
+const postPostingPeriodCheck = checkPostingPeriod;
+
 
 module.exports = {
     getSAPData,
@@ -878,7 +963,10 @@ module.exports = {
     productionOrderTeco,
     getUdReversal,
     postUdReversal,
-    udReversal
+    udReversal,
+    getPostingPeriodCheck,
+    checkPostingPeriod,
+    postPostingPeriodCheck
 };
 
 

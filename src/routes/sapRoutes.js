@@ -102,6 +102,12 @@ router.get('/ud-reversal/:lotNumber', sapController.getUdReversal);
 router.post('/ud-reversal', sapController.postUdReversal);
 router.post('/ud-reversal/:lotNumber', sapController.postUdReversal);
 
+// POST & GET routes for Check Posting Period
+router.get('/check-posting-period', sapController.getPostingPeriodCheck);
+router.get('/check-posting-period/:budat', sapController.getPostingPeriodCheck);
+router.post('/check-posting-period', sapController.checkPostingPeriod);
+router.post('/check-posting-period/:budat', sapController.checkPostingPeriod);
+
 module.exports = router;
 
 
