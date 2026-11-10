@@ -1,36 +1,67 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const axios = require('axios');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// Basic Auth credentials for SAP (Reads dynamically from config file)
-const getSapAuth = () => {
+// Configure HTTPS agent to accept self-signed SAP certificates
+const httpsAgent = new https.Agent({
+    rejectUnauthorized: false
+});
+axios.defaults.httpsAgent = httpsAgent;
+axios.interceptors.request.use((config) => {
+    config.httpsAgent = config.httpsAgent || httpsAgent;
+    const sapUser = config.auth ? config.auth.username : 'none';
+    console.log(`[SAP OData Request] ${(config.method || 'GET').toUpperCase()} ${config.url} | SAP User: ${sapUser}`);
+    const authHeader = config.auth
+        ? 'Basic ' + Buffer.from(`${config.auth.username}:${config.auth.password}`).toString('base64')
+        : (config.headers && (config.headers['Authorization'] || config.headers['authorization']));
+    const cookieHeader = config.headers && (config.headers['Cookie'] || config.headers['cookie']);
+    const csrfHeader = config.headers && (config.headers['X-CSRF-Token'] || config.headers['x-csrf-token']);
+
+    if (!config.beforeRedirect) {
+        config.beforeRedirect = (options) => {
+            options.headers = options.headers || {};
+            if (authHeader && !options.headers['Authorization'] && !options.headers['authorization']) {
+                options.headers['Authorization'] = authHeader;
+            }
+            if (cookieHeader && !options.headers['Cookie'] && !options.headers['cookie']) {
+                options.headers['Cookie'] = cookieHeader;
+            }
+            if (csrfHeader && !options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
+                options.headers['X-CSRF-Token'] = csrfHeader;
+            }
+        };
+    }
+    return config;
+});
+
+const dotenv = require('dotenv');
+
+// Load .env variables (with override so .env is always the source of truth)
+const loadEnv = () => {
     try {
-        const credPath = path.join(__dirname, '../config/sapCredentials.json');
-        const creds = JSON.parse(fs.readFileSync(credPath, 'utf8'));
-        return {
-            username: creds.username,
-            password: creds.password
-        };
+        const envPath = path.join(__dirname, '../../.env');
+        dotenv.config({ path: envPath, override: true });
     } catch (error) {
-        console.error('Error reading SAP credentials file:', error.message);
-        // Fallback to .env variables if file read fails
-        return {
-            username: process.env.SAP_USER,
-            password: process.env.SAP_PASSWORD
-        };
+        console.error('Error loading .env file:', error.message);
     }
 };
 
-// Base URL host for the SAP service (Reads dynamically from config file)
+// Basic Auth credentials for SAP (Reads from .env: SAP_USER and SAP_PASSWORD)
+const getSapAuth = () => {
+    loadEnv();
+    return {
+        username: process.env.SAP_USER,
+        password: process.env.SAP_PASSWORD
+    };
+};
+
+// Base URL host for the SAP service (Reads from .env: SAP_HOST)
 const getSapBaseUrl = () => {
-    try {
-        const credPath = path.join(__dirname, '../config/sapCredentials.json');
-        const creds = JSON.parse(fs.readFileSync(credPath, 'utf8'));
-        return creds.baseUrl || process.env.SAP_HOST;
-    } catch (error) {
-        console.error('Error reading SAP config file for baseUrl:', error.message);
-        return process.env.SAP_HOST;
-    }
+    loadEnv();
+    const host = (process.env.SAP_HOST || 'https://vhwclds4ap01.sap.wco.com:44300').trim();
+    return host.replace('http://vhwclds4ap01.sap.wco.com:8000', 'https://vhwclds4ap01.sap.wco.com:44300');
 };
 
 // Base URL for the SAP OData service
@@ -1193,15 +1224,9 @@ const productionOrderTeco = async (params = {}) => {
 
         const manufacturingOrder = String(dynamicOrder).trim();
 
-        // Credentials: default to FIOET_SAP / Password@123456789 (normalizes FIOET -> FIOET_SAP)
-        const baseAuth = getSapAuth();
-        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
-        const auth = {
-            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
-            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
-        };
-
-        const baseUrl = params.baseUrl || getSapBaseUrl();
+        // Credentials from .env (SAP_USER / SAP_PASSWORD)
+        const auth = getSapAuth();
+        const baseUrl = getSapBaseUrl();
 
         // Step 1: Fetch initial CSRF token and session cookies
         let csrfToken = null;
@@ -1293,18 +1318,12 @@ const productionOrderTeco = async (params = {}) => {
 
 /**
  * GET CSRF token and service metadata for UD Reversal service (ZPP_INSP_CANCEL_SRV_SRV).
- * GET http://vhwclds4ap01.sap.wco.com:8000/sap/opu/odata/sap/ZPP_INSP_CANCEL_SRV_SRV/?sap-client=110
+ * GET https://vhwclds4ap01.sap.wco.com:44300/sap/opu/odata/sap/ZPP_INSP_CANCEL_SRV_SRV/?sap-client=110
  */
 const getUdReversalToken = async (params = {}) => {
     try {
-        const baseAuth = getSapAuth();
-        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
-        const auth = {
-            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
-            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
-        };
-
-        const baseUrl = params.baseUrl || getSapBaseUrl();
+        const auth = getSapAuth();
+        const baseUrl = getSapBaseUrl();
         const url = `${baseUrl}/sap/opu/odata/sap/ZPP_INSP_CANCEL_SRV_SRV/?sap-client=110`;
         const response = await axios.get(url, {
             auth,
@@ -1350,14 +1369,8 @@ const fetchUdReversalCsrfToken = async (baseUrl, auth) => {
  */
 const postUdReversal = async (params = {}, customHeaders = {}) => {
     try {
-        const baseAuth = getSapAuth();
-        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
-        const auth = {
-            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
-            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
-        };
-
-        const baseUrl = params.baseUrl || getSapBaseUrl();
+        const auth = getSapAuth();
+        const baseUrl = getSapBaseUrl();
 
         // Step 1: Use passed CSRF token or fetch a fresh one
         let csrfToken = customHeaders['x-csrf-token'] || customHeaders['X-CSRF-Token'] || params.csrfToken || params.token;
@@ -1446,18 +1459,12 @@ const udReversal = postUdReversal;
 
 /**
  * GET CSRF token and service metadata for Posting Period Check service (ZPOSTING_PERIOD_CHECK_SRV).
- * GET http://vhwclds4ap01.sap.wco.com:8000/sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/?sap-client=110
+ * GET https://vhwclds4ap01.sap.wco.com:44300/sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/?sap-client=110
  */
 const getPostingPeriodCheckToken = async (params = {}) => {
     try {
-        const baseAuth = getSapAuth();
-        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
-        const auth = {
-            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
-            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
-        };
-
-        const baseUrl = params.baseUrl || getSapBaseUrl();
+        const auth = getSapAuth();
+        const baseUrl = getSapBaseUrl();
         const url = `${baseUrl}/sap/opu/odata/sap/ZPOSTING_PERIOD_CHECK_SRV/?sap-client=110`;
         const response = await axios.get(url, {
             auth,
@@ -1503,14 +1510,8 @@ const fetchPostingPeriodCheckCsrfToken = async (baseUrl, auth) => {
  */
 const checkPostingPeriod = async (params = {}, customHeaders = {}) => {
     try {
-        const baseAuth = getSapAuth();
-        const rawUsername = params.username || params.user || baseAuth.username || 'FIOET_SAP';
-        const auth = {
-            username: rawUsername === 'FIOET' ? 'FIOET_SAP' : rawUsername,
-            password: params.password || params.pass || baseAuth.password || 'Password@123456789'
-        };
-
-        const baseUrl = params.baseUrl || getSapBaseUrl();
+        const auth = getSapAuth();
+        const baseUrl = getSapBaseUrl();
 
         // Step 1: Use passed CSRF token or fetch a fresh one
         let csrfToken = customHeaders['x-csrf-token'] || customHeaders['X-CSRF-Token'] || params.csrfToken || params.token;
